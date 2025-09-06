@@ -172,7 +172,7 @@
 
 async function fetchChannel() {
   try {
-    const response = await fetch('https://raw.githubusercontent.com/mstvnetwork/mstv6/main/channel.json?_=' + Date.now());
+    const response = await fetch('https://raw.githubusercontent.com/mstvnetwork/mstv11/main/channel.json?_=' + Date.now());
     return await response.json();
   } catch (err) {
     console.error("Failed to fetch channel.json", err);
