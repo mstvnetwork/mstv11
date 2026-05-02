@@ -6,8 +6,9 @@
   <title>StreamZone — Live TV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <!-- x-frame-bypass: routes iframe through CORS proxy to bypass X-Frame-Options -->
-  <script src="https://unpkg.com/x-frame-bypass"></script>
+  <!-- x-frame-bypass: TWO scripts required - polyfill first, then module -->
+  <script src="https://unpkg.com/@ungap/custom-elements-builtin"></script>
+  <script type="module" src="https://unpkg.com/x-frame-bypass"></script>
   <style>
     :root {
       --bg:        #0a0a0f;
@@ -524,7 +525,6 @@
       header { padding: 0 1rem; }
       .controls, .section-header, #grid { padding: 0 1rem; }
       #grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 0.9rem; }
-      .modal { padding: 2rem 1.5rem; }
     }
   </style>
 </head>
@@ -616,7 +616,8 @@
           src=""
           allowfullscreen
           allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-          scrolling="no">
+          scrolling="no"
+          referrerpolicy="no-referrer">
         </iframe>
       </div>
 
@@ -873,4 +874,24 @@
   loadChannels();
 </script>
 </body>
-</html>
+  </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
