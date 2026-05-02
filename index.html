@@ -6,6 +6,8 @@
   <title>StreamZone — Live TV</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <!-- x-frame-bypass: routes iframe through CORS proxy to bypass X-Frame-Options -->
+  <script src="https://unpkg.com/x-frame-bypass"></script>
   <style>
     :root {
       --bg:        #0a0a0f;
@@ -374,18 +376,39 @@
       animation: pulse 1.2s infinite;
     }
 
-    /* iframe wrapper */
+    /* iframe wrapper — clips everything outside the video area */
     #player-frame-wrap {
       position: absolute;
       top: 56px; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
       display: flex; align-items: center; justify-content: center;
     }
 
+    /* frameMover: oversized so full page loads; shift top to crop header/nav */
+    #frame-mover {
+      position: absolute;
+      width: 100%;
+      height: 600%;
+      top: -180px;   /* adjust this to move the cropped viewport up/down */
+      left: 0;
+    }
+
     #player-iframe {
-      width: 100%; height: 100%;
+      width: 100%;
+      height: 100%;
       border: none;
       display: block;
     }
+
+    /* shield sits above iframe — one click starts video, then locks nav */
+    #frame-shield {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      background: transparent;
+      cursor: pointer;
+    }
+    #frame-shield.locked { pointer-events: none; }
 
     /* blocked fallback card */
     #player-blocked {
@@ -582,11 +605,20 @@
         <p>Loading stream…</p>
       </div>
 
-      <!-- The iframe -->
-      <iframe id="player-iframe" src="" allowfullscreen
-        allow="autoplay; fullscreen; picture-in-picture"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation">
-      </iframe>
+      <!-- Interaction shield: absorbs clicks until video plays, then unlocks -->
+      <div id="frame-shield"></div>
+
+      <!-- frame-mover: full-page height container; CSS crops to player area -->
+      <div id="frame-mover">
+        <!-- x-frame-bypass routes through CORS proxy, bypassing X-Frame-Options -->
+        <iframe id="player-iframe"
+          is="x-frame-bypass"
+          src=""
+          allowfullscreen
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          scrolling="no">
+        </iframe>
+      </div>
 
       <!-- Blocked fallback -->
       <div id="player-blocked">
@@ -619,7 +651,7 @@
 
 <script>
   // ── CONFIG ── point this to your channels.json path
-  const JSON_URL = 'https://raw.githubusercontent.com/mstvnetwork/mstv11/main/channel.json';
+  const JSON_URL = '';
 
   let allChannels = [];
   let activeCategory = 'All';
@@ -718,6 +750,8 @@
   // ── PLAYER ──
   const overlay    = document.getElementById('player-overlay');
   const iframe     = document.getElementById('player-iframe');
+  const frameMover = document.getElementById('frame-mover');
+  const shield     = document.getElementById('frame-shield');
   const loading    = document.getElementById('player-loading');
   const blocked    = document.getElementById('player-blocked');
   const barName    = document.getElementById('player-bar-name');
@@ -727,62 +761,75 @@
   const blockedTab = document.getElementById('blocked-newtab');
   const blockedPop = document.getElementById('blocked-popup');
 
+  // Per-channel crop offset (px). Negative = shift iframe UP, revealing lower content.
+  // Tune these if a channel's player appears in a different vertical position.
+  const CROP_OFFSETS = {
+    default: -180
+  };
+
   function openPlayer(ch) {
     currentChannel = ch;
 
     // reset state
-    loading.style.display  = 'flex';
-    iframe.style.display   = 'block';
-    blocked.style.display  = 'none';
-    iframe.src             = '';
+    loading.style.display      = 'flex';
+    iframe.style.display       = 'block';
+    frameMover.style.display   = 'block';
+    blocked.style.display      = 'none';
+    shield.classList.remove('locked');
+    iframe.src                 = '';
+
+    // apply crop offset
+    const offset = ch.cropTop !== undefined ? ch.cropTop : CROP_OFFSETS[ch.id] || CROP_OFFSETS.default;
+    frameMover.style.top = offset + 'px';
 
     // fill bar
-    barName.textContent  = ch.name;
-    barLogo.src          = ch.logo;
-    barLogo.alt          = ch.name;
-    btnNewtab.href       = ch.url;
-    blockedTab.href      = ch.url;
+    barName.textContent = ch.name;
+    barLogo.src         = ch.logo;
+    barLogo.alt         = ch.name;
+    btnNewtab.href      = ch.url;
+    blockedTab.href     = ch.url;
 
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    // short delay then load iframe
-    setTimeout(() => {
-      iframe.src = ch.url;
-    }, 300);
+    // load iframe via x-frame-bypass after short delay
+    setTimeout(() => { iframe.src = ch.url; }, 300);
 
-    // detect block: if iframe errors or stays empty after timeout
-    let iframeLoaded = false;
-
-    iframe.onload = () => {
-      iframeLoaded = true;
-      loading.style.display = 'none';
-      // try to detect X-Frame-Options block
-      try {
-        // if blocked, contentDocument is null or throws
-        const doc = iframe.contentDocument || iframe.contentWindow.document;
-        if (!doc || doc.body.innerHTML === '') throw new Error('blocked');
-      } catch (e) {
-        showBlocked(ch);
+    // shield: first click passes through to iframe (starts video), then locks
+    let clickCount = 0;
+    shield.onclick = () => {
+      clickCount++;
+      if (clickCount >= 1) {
+        shield.classList.add('locked');   // stop further navigation clicks
       }
     };
 
-    // fallback timeout — if load event never fires
+    // show loading spinner; hide after iframe signals load
+    let loaded = false;
+    iframe.onload = () => {
+      loaded = true;
+      loading.style.display = 'none';
+    };
+
+    // if x-frame-bypass proxy also fails → show fallback after 12s
     setTimeout(() => {
-      if (!iframeLoaded) showBlocked(ch);
-    }, 8000);
+      if (!loaded) showBlocked(ch);
+    }, 12000);
   }
 
   function showBlocked(ch) {
-    loading.style.display  = 'none';
-    iframe.style.display   = 'none';
-    blocked.style.display  = 'flex';
-    blockedTab.href        = ch.url;
+    loading.style.display      = 'none';
+    frameMover.style.display   = 'none';
+    shield.style.display       = 'none';
+    blocked.style.display      = 'flex';
+    blockedTab.href            = ch.url;
   }
 
   function closePlayer() {
     overlay.classList.remove('open');
-    iframe.src = '';
+    iframe.src                 = '';
+    shield.style.display       = '';
+    shield.classList.remove('locked');
     document.body.style.overflow = '';
     currentChannel = null;
   }
