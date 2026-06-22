@@ -205,35 +205,48 @@ button{
 <script>
 
 const EMBED_MODE =
-    new URLSearchParams(window.location.search)
-    .get('embed') === '1';
+    new URLSearchParams(location.search).get('embed') === '1';
 
+// clean UI for embed
 if (EMBED_MODE) {
 
-    document.getElementById('nowTitle').style.display = 'none';
+    const hide = (id) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    };
 
-    document.getElementById('clock').style.display = 'none';
-    document.getElementById('clockDate').style.display = 'none';
+    hide('nowTitle');
+    hide('clock');
+    hide('clockDate');
+    hide('statusText');
+    hide('statusOffset');
+    hide('scheduleList');
+    hide('syncToast');
+    hide('updateToast');
 
-    document.querySelector('.controls').style.display = 'none';
+    const progress = document.querySelector('.progress');
+    if (progress) progress.style.display = 'none';
 
-    document.querySelector('.progress').style.display = 'none';
-
-    document.getElementById('statusText').style.display = 'none';
-    document.getElementById('statusOffset').style.display = 'none';
-
-    document.querySelector('h3').style.display = 'none';
-
-    document.getElementById('scheduleList').style.display = 'none';
-
-    document.getElementById('syncToast').style.display = 'none';
-    document.getElementById('updateToast').style.display = 'none';
-
-    document.querySelector('.player-wrap').style.maxWidth = '100%';
-    document.querySelector('.player-wrap').style.padding = '0';
+    const h3 = document.querySelector('h3');
+    if (h3) h3.style.display = 'none';
 
     document.body.style.margin = '0';
     document.body.style.background = '#000';
+
+    const wrap = document.querySelector('.player-wrap');
+    if (wrap) {
+        wrap.style.maxWidth = '100%';
+        wrap.style.padding = '0';
+    }
+
+    const video = document.getElementById('videoPlayer');
+
+    // IMPORTANT: browser-safe autoplay setup
+    video.autoplay = true;
+    video.muted = true;
+    video.controls = true;
+    video.playsInline = true;
+    video.setAttribute('muted', '');
 }
 
 initPlayer({
@@ -263,10 +276,9 @@ initPlayer({
     showClock: !EMBED_MODE,
     clockId: 'clock',
     clockDateId: 'clockDate'
-
 });
 
-      </script>
+</script>
 
 </body>
 </html>
