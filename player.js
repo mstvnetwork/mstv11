@@ -249,14 +249,41 @@ function initPlayer(cfg) {
   }
 
   function doPlay() {
+
     loader.classList.add('hidden');
     errorMsg.classList.remove('show');
-    vid.volume = parseFloat(volSlider ? volSlider.value : 0.8);
-    vid.play().catch(() => { if (btnPlay) btnPlay.textContent = '▶'; });
-    paused = false;
-    if (btnPlay) btnPlay.textContent = '⏸';
-  }
 
+    const isEmbed =
+        new URLSearchParams(location.search).get('embed') === '1';
+
+    // ALWAYS force safe autoplay mode first
+    vid.muted = true;
+    vid.autoplay = true;
+
+    if (!isEmbed) {
+        vid.volume = parseFloat(volSlider ? volSlider.value : 0.8);
+    } else {
+        vid.volume = 0;
+    }
+
+    const playPromise = vid.play();
+
+    if (playPromise !== undefined) {
+        playPromise
+            .then(() => {
+                paused = false;
+                if (btnPlay) btnPlay.textContent = '⏸';
+            })
+            .catch(() => {
+                // fallback: user interaction required
+                paused = true;
+                if (btnPlay) btnPlay.textContent = '▶';
+            });
+    } else {
+        paused = false;
+        if (btnPlay) btnPlay.textContent = '⏸';
+    }
+  }
   function handleError() {
     loader.classList.add('hidden');
     errorMsg.classList.add('show');
